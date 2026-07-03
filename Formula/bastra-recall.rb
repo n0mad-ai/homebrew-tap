@@ -28,8 +28,12 @@ class BastraRecall < Formula
     # Root build (--workspaces): daemon imports need core/statusline dist,
     # which the release tarball does not contain (bastra-recall#184).
     system "npm", "run", "build"
+    # Runtime deps + workspace symlinks must ship with the install — without
+    # node_modules the ESM resolver cannot find @bastra-recall/core from the
+    # daemon dist (bastra-recall#184, second half). Prune dev deps first.
+    system "npm", "prune", "--omit=dev"
 
-    libexec.install "packages", "package.json", "package-lock.json"
+    libexec.install "packages", "node_modules", "package.json", "package-lock.json"
 
     # CLI + daemon binaries -> bin shims
     bin.install_symlink libexec/"packages/daemon/dist/cli.js" => "bastra"
