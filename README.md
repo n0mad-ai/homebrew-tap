@@ -6,6 +6,7 @@ Homebrew formulas for [n0mad-ai](https://github.com/n0mad-ai) tools.
 
 ```bash
 brew tap n0mad-ai/tap
+brew trust n0mad-ai/tap   # current brew refuses untrusted third-party taps
 brew install bastra-recall
 ```
 
