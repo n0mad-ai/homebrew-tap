@@ -25,7 +25,9 @@ class BastraRecall < Formula
 
   def install
     system "npm", "install"
-    system "npm", "run", "build", "--workspace", "@bastra-recall/daemon"
+    # Root build (--workspaces): daemon imports need core/statusline dist,
+    # which the release tarball does not contain (bastra-recall#184).
+    system "npm", "run", "build"
 
     libexec.install "packages", "package.json", "package-lock.json"
 
