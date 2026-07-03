@@ -6,6 +6,7 @@
 #
 # Install via:
 #   brew tap n0mad-ai/tap
+#   brew trust n0mad-ai/tap   # current brew refuses untrusted third-party taps
 #   brew install bastra-recall
 #   bastra install all
 #
