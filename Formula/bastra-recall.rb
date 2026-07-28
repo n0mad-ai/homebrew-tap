@@ -1,23 +1,22 @@
 # bastra-recall — Homebrew formula
 #
-# Lives in https://github.com/n0mad-ai/homebrew-tap (tap repo, separate).
-# Copy this file there as Formula/bastra-recall.rb and adjust the `url`
-# / `sha256` once a release tarball is published.
+# THIS FILE IS THE SOURCE OF TRUTH. The live copy lives in
+# https://github.com/n0mad-ai/homebrew-tap as Formula/bastra-recall.rb —
+# copy this file there on every release and set `url` / `sha256` to the new
+# tag's tarball. The two drifted apart once (the tap sat on v0.7.6 and was
+# missing six of the seven hook shims); keep them in lockstep.
 #
 # Install via:
 #   brew tap n0mad-ai/tap
 #   brew trust n0mad-ai/tap   # current brew refuses untrusted third-party taps
 #   brew install bastra-recall
 #   bastra install all
-#
-# This formula is the head-only build for now. For tagged releases, add a
-# `url + sha256` block above the `head` line.
 
 class BastraRecall < Formula
   desc "Persistent teammate memory for AI assistants (Claude, ChatGPT, Cursor)"
   homepage "https://github.com/n0mad-ai/bastra-recall"
-  url "https://github.com/n0mad-ai/bastra-recall/archive/refs/tags/v0.7.6.tar.gz"
-  sha256 "ab407475fe2b98b607236eda8fce7a102f564ac4e02a4afdca4aa4c593918695"
+  url "https://github.com/n0mad-ai/bastra-recall/archive/refs/tags/v0.8.8.tar.gz"
+  sha256 "4ccad2d66dbc0bbd35df74f38498b853fc79525b6cf9d65317c55745cddf1be1"
   license "MIT"
   head "https://github.com/n0mad-ai/bastra-recall.git", branch: "main"
 
@@ -26,7 +25,9 @@ class BastraRecall < Formula
   def install
     system "npm", "install"
     # Root build (--workspaces): daemon imports need core/statusline dist,
-    # which the release tarball does not contain (bastra-recall#184).
+    # which the release tarball does not contain (bastra-recall#184). The
+    # build also syncs packages/skill/*.md into packages/daemon/skill/, which
+    # is where the CLI reads the skill payload from (#232).
     system "npm", "run", "build"
     # Runtime deps + workspace symlinks must ship with the install — without
     # node_modules the ESM resolver cannot find @bastra-recall/core from the
@@ -35,12 +36,21 @@ class BastraRecall < Formula
 
     libexec.install "packages", "node_modules", "package.json", "package-lock.json"
 
-    # CLI + daemon binaries -> bin shims
+    # CLI + daemon binaries -> bin shims. All seven hooks belong here: the
+    # hook binaries are what `bastra install claude-code` registers, so a
+    # missing shim silently costs the user that reflex lane.
     bin.install_symlink libexec/"packages/daemon/dist/cli.js" => "bastra"
     bin.install_symlink libexec/"packages/daemon/dist/index.js" => "bastra-recall"
     bin.install_symlink libexec/"packages/daemon/dist/mcp-forwarder.js" => "bastra-recall-mcp"
+    bin.install_symlink libexec/"packages/daemon/dist/bridge.js" => "bastra-recall-bridge"
     bin.install_symlink libexec/"packages/daemon/dist/hook.js" => "bastra-recall-hook"
     bin.install_symlink libexec/"packages/daemon/dist/session-hook.js" => "bastra-recall-session-hook"
+    bin.install_symlink libexec/"packages/daemon/dist/prompt-hook.js" => "bastra-recall-prompt-hook"
+    bin.install_symlink libexec/"packages/daemon/dist/todo-hook.js" => "bastra-recall-todo-hook"
+    bin.install_symlink libexec/"packages/daemon/dist/bash-pre-hook.js" => "bastra-recall-bash-pre-hook"
+    bin.install_symlink libexec/"packages/daemon/dist/bash-fail-hook.js" => "bastra-recall-bash-fail-hook"
+    bin.install_symlink libexec/"packages/daemon/dist/stop-hook.js" => "bastra-recall-stop-hook"
+    bin.install_symlink libexec/"packages/statusline/bin/claude-powerline" => "bastra-statusline"
   end
 
   def caveats
@@ -51,10 +61,9 @@ class BastraRecall < Formula
       That registers bastra-recall with every supported AI client
       (Claude Code, Claude Desktop, Cursor) and verifies the install.
 
-      The daemon does not auto-start yet. Either:
-        • Run it manually:   bastra-recall &
-        • Or use the LaunchAgent plist in ~/Library/LaunchAgents/
-          (see distribution/launchagent/ in the repo for a template)
+      The MCP forwarder auto-starts the daemon on first use. To start it
+      eagerly for REST clients:
+        bastra-recall &
 
       Vault path: pass --vault, set BASTRA_VAULT_PATH, or let the CLI
       auto-detect from an existing claude.json registration.
