@@ -1,0 +1,122 @@
+name: Update formula
+
+# Keeps Formula/bastra-recall.rb pointing at the latest stable bastra-recall
+# release. The tap used to be bumped by hand and silently rotted — it sat on
+# v0.7.6 for a month while npm moved on. Nothing fails when that happens: the
+# double-click installer and `curl -fsSL https://bastra.io/install | bash` both
+# go through this tap, so exactly the non-developer paths ship the old version
+# and `bastra --version` just prints a stale number.
+
+on:
+  # Hourly: a release reaches the tap within the hour with nobody doing
+  # anything. The no-op runs are free (public repo) and take seconds — the
+  # right trade against the failure this replaces, a tap that sat a month
+  # behind. Deliberately off the hour, GitHub delays or drops scheduled jobs
+  # that pile up at :00.
+  #
+  # Deliberately not event-driven: having the release workflow in
+  # bastra-recall trigger this one would need a PAT stored as a secret in both
+  # repos. Polling keeps it at zero configuration, which is the point.
+  schedule:
+    - cron: "37 * * * *"
+  # So a release does not have to wait for the next cron tick.
+  workflow_dispatch:
+
+concurrency:
+  group: update-formula
+  cancel-in-progress: false
+
+# The repo-wide default for GITHUB_TOKEN is read-only; this block raises it for
+# this workflow only. No PAT, no secret, no app — the token pushes to its own
+# repo.
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Bump formula to latest bastra-recall release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_REPO: n0mad-ai/bastra-recall
+          FORMULA: Formula/bastra-recall.rb
+        run: |
+          set -euo pipefail
+
+          # /releases/latest excludes drafts and pre-releases by definition, so
+          # neither can ever reach the tap. If it 404s (no stable release at
+          # all) the job fails loudly instead of guessing a tag.
+          tag="$(gh api "repos/$SOURCE_REPO/releases/latest" --jq '.tag_name')"
+          if [ -z "$tag" ] || [ "$tag" = "null" ]; then
+            echo "::error::could not resolve latest release tag of $SOURCE_REPO"
+            exit 1
+          fi
+
+          # Single source of the current version: the url line itself. No
+          # separate `version` field to drift out of sync.
+          current="$(sed -n 's|^  url "https://github.com/.*/archive/refs/tags/\(.*\)\.tar\.gz"$|\1|p' "$FORMULA")"
+          if [ -z "$current" ]; then
+            echo "::error::could not parse the current tag out of $FORMULA"
+            exit 1
+          fi
+
+          echo "latest release: $tag"
+          echo "formula at:     $current"
+
+          # The idempotency gate: a second run right after the first sees equal
+          # versions and stops before touching the working tree.
+          if [ "$tag" = "$current" ]; then
+            echo "already current — nothing to do"
+            exit 0
+          fi
+
+          url="https://github.com/$SOURCE_REPO/archive/refs/tags/$tag.tar.gz"
+
+          # The tag is visible through the API a moment before the tarball is
+          # servable, so retry — but give up rather than hash whatever came
+          # back. --retry-all-errors is what makes curl retry the 404 too.
+          curl -fsSL --retry 5 --retry-delay 10 --retry-all-errors -o release.tar.gz "$url"
+
+          # A 200 carrying an HTML error page would hash perfectly happily.
+          # Only a file that actually unpacks may produce a checksum.
+          tar -tzf release.tar.gz >/dev/null
+
+          sha="$(sha256sum release.tar.gz | cut -d' ' -f1)"
+          echo "sha256: $sha"
+
+          sed -i \
+            -e "s|^\(  url \"\).*\(\"\)$|\1$url\2|" \
+            -e "s|^\(  sha256 \"\).*\(\"\)$|\1$sha\2|" \
+            "$FORMULA"
+
+          # sed says nothing when a pattern misses. Without these two checks a
+          # reformatted formula would produce an empty diff and a green run
+          # that changed nothing — the same silent staleness, automated.
+          grep -qF "$url" "$FORMULA" || { echo "::error::url line was not updated"; exit 1; }
+          grep -qF "$sha" "$FORMULA" || { echo "::error::sha256 line was not updated"; exit 1; }
+
+          rm -f release.tar.gz
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Belt and braces next to the version gate above: never build an
+          # empty commit.
+          if git diff --quiet -- "$FORMULA"; then
+            echo "::error::version differs but the formula did not change"
+            exit 1
+          fi
+
+          git add "$FORMULA"
+          git commit \
+            -m "bastra-recall ${tag#v}" \
+            -m "Tarball: $url" \
+            -m "Bumped by .github/workflows/update-formula.yml."
+
+          # No `|| true`, no continue-on-error: a rejected push has to turn the
+          # run red. A push that fails quietly is the bug this workflow exists
+          # to remove.
+          git push

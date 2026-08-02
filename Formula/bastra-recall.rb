@@ -1,10 +1,13 @@
-# bastra-recall — Homebrew formula
+# bastra-recall — Homebrew formula (live tap copy)
 #
-# THIS FILE IS THE SOURCE OF TRUTH. The live copy lives in
-# https://github.com/n0mad-ai/homebrew-tap as Formula/bastra-recall.rb —
-# copy this file there on every release and set `url` / `sha256` to the new
-# tag's tarball. The two drifted apart once (the tap sat on v0.7.6 and was
-# missing six of the seven hook shims); keep them in lockstep.
+# `url` / `sha256` are bumped automatically by
+# .github/workflows/update-formula.yml on every stable release of
+# n0mad-ai/bastra-recall — do not edit those two lines by hand.
+#
+# Everything else (build steps, bin shims, caveats) is still authored in
+# distribution/homebrew/bastra-recall.rb in the bastra-recall repo and has to
+# be copied over here by hand. The two drifted apart once (the tap sat on
+# v0.7.6 and was missing six of the seven hook shims); keep them in lockstep.
 #
 # Install via:
 #   brew tap n0mad-ai/tap
@@ -15,8 +18,8 @@
 class BastraRecall < Formula
   desc "Persistent teammate memory for AI assistants (Claude, ChatGPT, Cursor)"
   homepage "https://github.com/n0mad-ai/bastra-recall"
-  url "https://github.com/n0mad-ai/bastra-recall/archive/refs/tags/v0.8.8.tar.gz"
-  sha256 "4ccad2d66dbc0bbd35df74f38498b853fc79525b6cf9d65317c55745cddf1be1"
+  url "https://github.com/n0mad-ai/bastra-recall/archive/refs/tags/v0.8.9.tar.gz"
+  sha256 "4a143594e41b8858fe9f8deb2a1137019ce29a7a79561543c7b8b4ce053cc1f8"
   license "MIT"
   head "https://github.com/n0mad-ai/bastra-recall.git", branch: "main"
 
