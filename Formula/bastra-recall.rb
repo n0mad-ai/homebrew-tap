@@ -18,8 +18,8 @@
 class BastraRecall < Formula
   desc "Persistent teammate memory for AI assistants (Claude, ChatGPT, Cursor)"
   homepage "https://github.com/n0mad-ai/bastra-recall"
-  url "https://github.com/n0mad-ai/bastra-recall/archive/refs/tags/v1.0.0.tar.gz"
-  sha256 "59d188bce1d905bab55c6ae7f5afaeb062827260ba31428ecae9e3e655f86e09"
+  url "https://github.com/n0mad-ai/bastra-recall/archive/refs/tags/v1.0.1.tar.gz"
+  sha256 "083cb518a623c3325e52a73323cfb94ac34db781bf2a2bee7e478e57d2e4f0c2"
   license "MIT"
   head "https://github.com/n0mad-ai/bastra-recall.git", branch: "main"
 
